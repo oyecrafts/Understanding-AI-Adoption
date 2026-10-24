@@ -217,7 +217,12 @@ def load_data(path: Path) -> pd.DataFrame:
                 "Review the coding map before interpreting results."
             )
 
-    data["ai_usage"] = pd.to_numeric(data["ai_usage"], errors="coerce")
+    usage = pd.to_numeric(data["ai_usage"], errors="coerce")
+    invalid_usage = data["ai_usage"].notna() & usage.isna()
+    if invalid_usage.any():
+        values = ", ".join(sorted(data.loc[invalid_usage, "ai_usage"].astype(str).unique()))
+        raise ValueError(f"Non-numeric AI usage responses found: {values}")
+    data["ai_usage"] = usage
     return data
 
 
@@ -286,7 +291,8 @@ def run_analysis(data: pd.DataFrame, output_dir: Path) -> None:
         .rename("missing_n")
         .to_frame()
         .assign(missing_percent=lambda frame: (frame["missing_n"] / len(data) * 100).round(1))
-        .reset_index(names="variable")
+        .reset_index()
+        .rename(columns={"index": "variable"})
     )
 
     frequencies.to_csv(output_dir / "response_frequencies.csv", index=False)
