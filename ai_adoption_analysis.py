@@ -251,6 +251,8 @@ def numeric_summary(data: pd.DataFrame, columns: list[str]) -> pd.DataFrame:
                 "mean": values.mean(),
                 "sd": values.std(),
                 "median": values.median(),
+                "q1": values.quantile(0.25),
+                "q3": values.quantile(0.75),
                 "min": values.min(),
                 "max": values.max(),
             }
