@@ -169,6 +169,10 @@ KEY_CATEGORICALS = [
     "own_job_impact",
     "ethical_rules",
     "ai_humanity_impact",
+    "ai_consciousness_belief",
+    "ai_application_knowledge",
+    "machine_learning_knowledge",
+    "chatgpt_knowledge",
 ]
 KEY_SCORES = [
     "knowledge_score",
@@ -196,9 +200,12 @@ def load_data(path: Path) -> pd.DataFrame:
             + ", ".join(missing_columns)
         )
 
-    data = raw.drop(columns=["ID"], errors="ignore").rename(columns=SOURCE_COLUMNS)
-    for column in data.select_dtypes(include="object"):
-        data[column] = data[column].str.strip()
+    data = raw.drop(columns=["ID"], errors="ignore").rename(
+        columns={source: name for name, source in SOURCE_COLUMNS.items()}
+    )
+    for column in data.columns:
+        if pd.api.types.is_string_dtype(data[column].dtype):
+            data[column] = data[column].str.strip()
 
     data["education_level"] = data["education_level"].replace(
         {"Ön Bachelor's degree": "Associate degree"}
