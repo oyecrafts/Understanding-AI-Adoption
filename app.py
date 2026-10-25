@@ -2,7 +2,6 @@
 
 from pathlib import Path
 
-import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -70,40 +69,6 @@ def relationship_summary(
     return summary, float(rho)
 
 
-def render_side_by_side_bars(
-    summary: pd.DataFrame,
-    category_col: str,
-    metric_cols: list[str],
-    title: str,
-    y_title: str = "Mean score (1-5)",
-) -> None:
-    """Render grouped bars with separate series for each metric."""
-    long = (
-        summary.rename(columns={category_col: "Category"})
-        .melt(
-            id_vars=["Category"],
-            value_vars=metric_cols,
-            var_name="Metric",
-            value_name="Value",
-        )
-        .copy()
-    )
-    chart = (
-        alt.Chart(long)
-        .mark_bar()
-        .encode(
-            x=alt.X("Category:N", title=None),
-            y=alt.Y("Value:Q", title=y_title, scale=alt.Scale(domain=[0, 5])),
-            color=alt.Color("Metric:N", legend=alt.Legend(title="Measure")),
-            xOffset="Metric:N",
-        )
-        .properties(title=title, height=300)
-        .configure_view(strokeWidth=0)
-        .configure_axis(labelAngle=0)
-    )
-    st.altair_chart(chart, use_container_width=True)
-
-
 try:
     survey = get_data()
 except (OSError, ValueError, pd.errors.ParserError) as error:
@@ -166,16 +131,6 @@ if under_18:
         "Interpret these results with appropriate care."
     )
 
-knowledge_summary, knowledge_rho = relationship_summary(
-    filtered, "knowledge_score", "Self-reported AI knowledge (1-5)"
-)
-trust_summary, trust_rho = relationship_summary(
-    filtered, "trust_score", "Trust in AI (1-5)"
-)
-job_impact_summary, job_impact_rho = relationship_summary(
-    filtered, "own_job_impact_score", "Perceived impact on own job (1-5)"
-)
-
 overview_tab, knowledge_tab, risk_tab, demographic_tab, details_tab = st.tabs(
     [
         "Overview & themes",
@@ -207,25 +162,6 @@ with overview_tab:
         "agree AI could threaten individual freedoms."
     )
 
-    st.subheader("Research conclusion")
-    st.markdown(
-        f"In this sample, trust appears to matter more than knowledge for willingness to adopt AI. "
-        f"The descriptive association between trust and willingness is stronger (Spearman ρ ≈ {trust_rho:.2f}) "
-        f"than the association between knowledge and willingness (ρ ≈ {knowledge_rho:.2f}). This suggests that "
-        "respondents do not simply need more technical understanding to feel comfortable with AI; they also need a sense "
-        "that AI is reliable and appropriate to use. The relatively high share of respondents who are undecided about trust "
-        "is especially notable, because uncertainty about AI may be a more immediate barrier to adoption than a lack of awareness alone."
-    )
-    st.markdown(
-        f"The positive relationship between perceived job impact and willingness (ρ ≈ {job_impact_rho:.2f}) is also worth highlighting. "
-        "This is unexpected if one assumes that people who think AI will affect their jobs will be more resistant to it, yet in this dataset "
-        "the pattern is the opposite. One possible explanation is that respondents who are most aware of AI's labour implications are also the same "
-        "people who are most engaged with AI and therefore more open to adaptation. However, this is purely descriptive and should not be interpreted as a causal effect."
-    )
-    st.markdown(
-        "Taken together, the findings point to an explanatory pattern rather than a policy conclusion. The survey is modest in size, cross-sectional, and based on self-reported attitudes, so it cannot support strong claims about the wider public or the effect of specific policy interventions. Any policy recommendations should therefore be treated as tentative and should be revisited with a larger, more representative, longitudinal study."
-    )
-
     left, right = st.columns(2)
     with left:
         st.markdown("**Current AI product use**")
@@ -240,6 +176,12 @@ with overview_tab:
 
 with knowledge_tab:
     st.subheader("Knowledge and trust")
+    knowledge, knowledge_rho = relationship_summary(
+        filtered, "knowledge_score", "Self-reported AI knowledge (1-5)"
+    )
+    trust, trust_rho = relationship_summary(
+        filtered, "trust_score", "Trust in AI (1-5)"
+    )
     left, right = st.columns(2)
     with left:
         st.markdown("**Knowledge and adoption**")
@@ -247,26 +189,24 @@ with knowledge_tab:
             f"Spearman association with willingness: ρ = {knowledge_rho:.2f}. "
             "This is descriptive, not causal."
         )
-        render_side_by_side_bars(
-            knowledge_summary.set_index("Self-reported AI knowledge (1-5)"),
-            category_col="Self-reported AI knowledge (1-5)",
-            metric_cols=["Mean willingness (1-5)", "Mean AI use (1-5)"],
-            title="Knowledge and adoption",
+        st.bar_chart(
+            knowledge.set_index("Self-reported AI knowledge (1-5)")[
+                ["Mean willingness (1-5)", "Mean AI use (1-5)"]
+            ]
         )
-        st.dataframe(knowledge_summary, hide_index=True, width="stretch")
+        st.dataframe(knowledge, hide_index=True, width="stretch")
     with right:
         st.markdown("**Trust and adoption**")
         st.caption(
             f"Spearman association with willingness: ρ = {trust_rho:.2f}. "
             "This is descriptive, not causal."
         )
-        render_side_by_side_bars(
-            trust_summary.set_index("Trust in AI (1-5)"),
-            category_col="Trust in AI (1-5)",
-            metric_cols=["Mean willingness (1-5)", "Mean AI use (1-5)"],
-            title="Trust and adoption",
+        st.bar_chart(
+            trust.set_index("Trust in AI (1-5)")[
+                ["Mean willingness (1-5)", "Mean AI use (1-5)"]
+            ]
         )
-        st.dataframe(trust_summary, hide_index=True, width="stretch")
+        st.dataframe(trust, hide_index=True, width="stretch")
 
 with risk_tab:
     st.subheader("Perceived risks and adoption willingness")
@@ -285,11 +225,10 @@ with risk_tab:
                     f"Spearman association with willingness: ρ = {rho:.2f}. "
                     "Interpret ordinal trends cautiously."
                 )
-                render_side_by_side_bars(
-                    summary.set_index(label),
-                    category_col=label,
-                    metric_cols=["Mean willingness (1-5)", "Mean AI use (1-5)"],
-                    title=label,
+                st.bar_chart(
+                    summary.set_index(label)[
+                        ["Mean willingness (1-5)", "Mean AI use (1-5)"]
+                    ]
                 )
                 st.dataframe(summary, hide_index=True, width="stretch")
 
@@ -308,25 +247,26 @@ with demographic_tab:
                 mean_willingness=("willingness_score", "mean"),
             )
             .round(2)
-            .reset_index()
-            .rename(columns={column: label})
         )
         st.markdown(f"**By {label.lower()}**")
-        render_side_by_side_bars(
-            grouped,
-            category_col=label,
-            metric_cols=["mean_usage", "mean_willingness"],
-            title=f"Mean scores by {label.lower()}",
-            y_title="Mean score",
+        st.bar_chart(
+            grouped.rename(
+                columns={
+                    "mean_usage": "Mean AI use (1-5)",
+                    "mean_willingness": "Mean willingness (1-5)",
+                }
+            )[["Mean AI use (1-5)", "Mean willingness (1-5)"]]
         )
-        grouped_display = grouped.rename(
-            columns={
-                "respondents": "Respondents",
-                "mean_usage": "Mean AI use (1-5)",
-                "mean_willingness": "Mean willingness (1-5)",
-            }
+        st.dataframe(
+            grouped.rename(
+                columns={
+                    "respondents": "Respondents",
+                    "mean_usage": "Mean AI use (1-5)",
+                    "mean_willingness": "Mean willingness (1-5)",
+                }
+            ),
+            width="stretch",
         )
-        st.dataframe(grouped_display, width="stretch")
 
 with details_tab:
     st.subheader("Descriptive statistics")
