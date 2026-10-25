@@ -131,8 +131,19 @@ if under_18:
         "Interpret these results with appropriate care."
     )
 
-overview_tab, knowledge_tab, risk_tab, demographic_tab, details_tab = st.tabs(
+knowledge, knowledge_rho = relationship_summary(
+    filtered, "knowledge_score", "Self-reported AI knowledge (1-5)"
+)
+trust, trust_rho = relationship_summary(
+    filtered, "trust_score", "Trust in AI (1-5)"
+)
+job_impact, job_impact_rho = relationship_summary(
+    filtered, "own_job_impact_score", "Perceived impact on own job (1-5)"
+)
+
+summary_tab, overview_tab, knowledge_tab, risk_tab, demographic_tab, details_tab = st.tabs(
     [
+        "Summary of findings",
         "Overview & themes",
         "Knowledge and trust",
         "Perceived risks",
@@ -140,6 +151,34 @@ overview_tab, knowledge_tab, risk_tab, demographic_tab, details_tab = st.tabs(
         "Descriptives",
     ]
 )
+
+with summary_tab:
+    st.subheader("Summary of findings")
+    st.markdown(
+        "This survey suggests that willingness to adopt AI is shaped more by trust than by knowledge alone. "
+        "In descriptive terms, the relationship between trust and willingness appears stronger than the relationship between "
+        "self-reported AI knowledge and willingness. This indicates that respondents may need more than awareness of AI tools; "
+        "they also need confidence that AI is trustworthy, safe, and appropriate for everyday use."
+    )
+    st.markdown(
+        "The positive association between perceived job impact and willingness is also notable. In a simple risk-based interpretation, "
+        "one might expect people who think AI will affect their job to be more resistant to adoption. Instead, the pattern in this sample is the opposite. "
+        "A plausible explanation is that people who are more aware of AI's labour implications are also more engaged with AI and therefore more open to adapting to it, but this remains a descriptive pattern rather than a causal finding."
+    )
+    st.markdown(
+        "The survey also shows that uncertainty is a central theme: a meaningful share of respondents are undecided about trust, illustrating that "
+        "hesitation may be as important as scepticism. Overall, these results support a cautious interpretation. The sample is modest and cross-sectional, and self-reported attitudes cannot be used to draw firm policy conclusions or predict broader population behaviour."
+    )
+
+    highlight_cols = st.columns(3)
+    highlight_cols[0].metric("Trust-willingness association", f"ρ ≈ {trust_rho:.2f}")
+    highlight_cols[1].metric("Knowledge-willingness association", f"ρ ≈ {knowledge_rho:.2f}")
+    highlight_cols[2].metric("Job impact-willingness association", f"ρ ≈ {job_impact_rho:.2f}")
+
+    st.caption(
+        "Interpretation note: these are exploratory Spearman associations, not causal estimates. "
+        "Policy recommendations should be treated as tentative until validated in a larger and more representative study."
+    )
 
 with overview_tab:
     st.subheader("What stands out in this sample?")
@@ -176,12 +215,6 @@ with overview_tab:
 
 with knowledge_tab:
     st.subheader("Knowledge and trust")
-    knowledge, knowledge_rho = relationship_summary(
-        filtered, "knowledge_score", "Self-reported AI knowledge (1-5)"
-    )
-    trust, trust_rho = relationship_summary(
-        filtered, "trust_score", "Trust in AI (1-5)"
-    )
     left, right = st.columns(2)
     with left:
         st.markdown("**Knowledge and adoption**")
