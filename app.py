@@ -2,6 +2,7 @@
 
 from pathlib import Path
 
+import altair as alt
 import pandas as pd
 import streamlit as st
 
@@ -67,6 +68,39 @@ def relationship_summary(
     )
     rho = data[[factor, "willingness_score"]].corr(method="spearman").iloc[0, 1]
     return summary, float(rho)
+
+
+def render_side_by_side_bars(
+    summary: pd.DataFrame,
+    category_col: str,
+    metric_cols: list[str],
+    title: str,
+    y_title: str = "Mean score (1-5)",
+) -> None:
+    """Render grouped bars with separate series for each metric."""
+    plot_df = summary[[category_col] + metric_cols].copy()
+    plot_df = plot_df.rename(columns={category_col: "Category"})
+    long = plot_df.melt(
+        id_vars=["Category"],
+        value_vars=metric_cols,
+        var_name="Metric",
+        value_name="Value",
+    )
+
+    chart = (
+        alt.Chart(long)
+        .mark_bar()
+        .encode(
+            x=alt.X("Category:N", title=None),
+            y=alt.Y("Value:Q", title=y_title, scale=alt.Scale(domain=[0, 5])),
+            color=alt.Color("Metric:N", legend=alt.Legend(title="Measure")),
+            xOffset="Metric:N",
+        )
+        .properties(title=title, height=300)
+        .configure_view(strokeWidth=0)
+        .configure_axis(labelAngle=0)
+    )
+    st.altair_chart(chart, use_container_width=True)
 
 
 try:
@@ -222,10 +256,11 @@ with knowledge_tab:
             f"Spearman association with willingness: ρ = {knowledge_rho:.2f}. "
             "This is descriptive, not causal."
         )
-        st.bar_chart(
-            knowledge.set_index("Self-reported AI knowledge (1-5)")[
-                ["Mean willingness (1-5)", "Mean AI use (1-5)"]
-            ]
+        render_side_by_side_bars(
+            knowledge,
+            "Self-reported AI knowledge (1-5)",
+            ["Mean willingness (1-5)", "Mean AI use (1-5)"],
+            "Knowledge and adoption",
         )
         st.dataframe(knowledge, hide_index=True, width="stretch")
     with right:
@@ -234,10 +269,11 @@ with knowledge_tab:
             f"Spearman association with willingness: ρ = {trust_rho:.2f}. "
             "This is descriptive, not causal."
         )
-        st.bar_chart(
-            trust.set_index("Trust in AI (1-5)")[
-                ["Mean willingness (1-5)", "Mean AI use (1-5)"]
-            ]
+        render_side_by_side_bars(
+            trust,
+            "Trust in AI (1-5)",
+            ["Mean willingness (1-5)", "Mean AI use (1-5)"],
+            "Trust and adoption",
         )
         st.dataframe(trust, hide_index=True, width="stretch")
 
@@ -258,10 +294,11 @@ with risk_tab:
                     f"Spearman association with willingness: ρ = {rho:.2f}. "
                     "Interpret ordinal trends cautiously."
                 )
-                st.bar_chart(
-                    summary.set_index(label)[
-                        ["Mean willingness (1-5)", "Mean AI use (1-5)"]
-                    ]
+                render_side_by_side_bars(
+                    summary,
+                    label,
+                    ["Mean willingness (1-5)", "Mean AI use (1-5)"],
+                    label,
                 )
                 st.dataframe(summary, hide_index=True, width="stretch")
 
@@ -280,19 +317,20 @@ with demographic_tab:
                 mean_willingness=("willingness_score", "mean"),
             )
             .round(2)
+            .reset_index()
         )
         st.markdown(f"**By {label.lower()}**")
-        st.bar_chart(
-            grouped.rename(
-                columns={
-                    "mean_usage": "Mean AI use (1-5)",
-                    "mean_willingness": "Mean willingness (1-5)",
-                }
-            )[["Mean AI use (1-5)", "Mean willingness (1-5)"]]
+        render_side_by_side_bars(
+            grouped,
+            column,
+            ["mean_usage", "mean_willingness"],
+            f"Mean scores by {label.lower()}",
+            y_title="Mean score",
         )
         st.dataframe(
             grouped.rename(
                 columns={
+                    column: label,
                     "respondents": "Respondents",
                     "mean_usage": "Mean AI use (1-5)",
                     "mean_willingness": "Mean willingness (1-5)",
